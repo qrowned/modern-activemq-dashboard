@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "activemq-dashboard.fullname" . }}-backend
+  labels:
+    {{- include "activemq-dashboard.labels" . | nindent 4 }}
+    {{- include "activemq-dashboard.backend.selectorLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "activemq-dashboard.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "activemq-dashboard.labels" . | nindent 8 }}
+        {{- include "activemq-dashboard.backend.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: ACTIVEMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "activemq-dashboard.secretName" . }}
+                  key: ACTIVEMQ_URL
+            - name: ACTIVEMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "activemq-dashboard.secretName" . }}
+                  key: ACTIVEMQ_USER
+            - name: ACTIVEMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "activemq-dashboard.secretName" . }}
+                  key: ACTIVEMQ_PASSWORD
+            - name: BROKER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "activemq-dashboard.secretName" . }}
+                  key: BROKER_NAME
+            - name: PORT
+              value: "8080"
+          livenessProbe:
+            {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

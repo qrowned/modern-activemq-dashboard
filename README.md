@@ -168,6 +168,174 @@ cd backend && go run ./cmd/server
 
 ---
 
+## Kubernetes / Enterprise Deployment
+
+For teams running Kubernetes. The broker is assumed to be pre-existing — only the backend and frontend are deployed.
+
+### Prerequisites
+
+- kubectl 1.24+
+- Helm 3.10+ (for Option A)
+- Docker images pushed to a container registry
+
+### Building and pushing images
+
+Images are published automatically to GitHub Container Registry on every release (see [CI/CD](#cicd--automated-publishing) below). To build and push manually:
+
+```bash
+# Backend
+docker build -t ghcr.io/your-org/activemq-dashboard-backend:latest ./backend
+docker push ghcr.io/your-org/activemq-dashboard-backend:latest
+
+# Frontend
+docker build -t ghcr.io/qrowned/modern-activemq-dashboard-frontend:latest ./frontend
+docker push ghcr.io/your-org/modern-activemq-dashboard-frontend:latest
+```
+
+### Quick install (no build required)
+
+Once images are published, install directly from the Helm repository:
+
+```bash
+# Add the Helm repository (once)
+helm repo add activemq-dashboard https://your-org.github.io/activemq-dashboard
+helm repo update
+
+# Install — point it at your existing broker
+helm install my-amq activemq-dashboard/activemq-dashboard \
+  --namespace activemq-dashboard --create-namespace \
+  --set activemq.url=http://your-broker:8161 \
+  --set activemq.user=admin \
+  --set activemq.password=your-password \
+  --set activemq.brokerName=your-broker-name
+```
+
+To upgrade to the latest release:
+
+```bash
+helm repo update
+helm upgrade my-amq activemq-dashboard/activemq-dashboard --reuse-values
+```
+
+### Option A: Helm (recommended)
+
+Install from a local checkout:
+
+```bash
+helm install my-amq ./deploy/helm/activemq-dashboard \
+  --namespace activemq-dashboard --create-namespace \
+  --set activemq.url=http://your-broker:8161 \
+  --set activemq.user=admin \
+  --set activemq.password=your-password \
+  --set activemq.brokerName=your-broker-name
+```
+
+Access the dashboard via port-forward:
+
+```bash
+kubectl port-forward svc/my-amq-activemq-dashboard-frontend 3000:80 -n activemq-dashboard
+# open http://localhost:3000
+```
+
+Enable ingress:
+
+```bash
+helm upgrade my-amq ./deploy/helm/activemq-dashboard --reuse-values \
+  --set ingress.enabled=true \
+  --set ingress.host=activemq-dashboard.example.com
+```
+
+Enable ingress with TLS via cert-manager:
+
+```bash
+helm upgrade my-amq ./deploy/helm/activemq-dashboard --reuse-values \
+  --set ingress.enabled=true \
+  --set ingress.host=activemq-dashboard.example.com \
+  --set ingress.annotations."cert-manager\.io/cluster-issuer"=letsencrypt-prod \
+  --set ingress.tls[0].hosts[0]=activemq-dashboard.example.com \
+  --set ingress.tls[0].secretName=activemq-dashboard-tls
+```
+
+Use an existing Secret (External Secrets Operator / Vault / Sealed Secrets):
+
+```bash
+# Pre-create a Secret with keys: ACTIVEMQ_URL, ACTIVEMQ_USER, ACTIVEMQ_PASSWORD, BROKER_NAME
+kubectl create secret generic my-amq-creds -n activemq-dashboard \
+  --from-literal=ACTIVEMQ_URL=http://your-broker:8161 \
+  --from-literal=ACTIVEMQ_USER=admin \
+  --from-literal=ACTIVEMQ_PASSWORD=your-password \
+  --from-literal=BROKER_NAME=your-broker-name
+
+helm install my-amq ./deploy/helm/activemq-dashboard \
+  --namespace activemq-dashboard --create-namespace \
+  --set existingSecret=my-amq-creds
+```
+
+#### Helm values reference
+
+| Key | Default                                              | Description |
+|---|------------------------------------------------------|---|
+| `activemq.url` | `http://activemq:8161`                               | ActiveMQ broker URL |
+| `activemq.user` | `admin`                                              | Broker username |
+| `activemq.password` | `admin`                                              | Broker password |
+| `activemq.brokerName` | `localhost`                                          | `brokerName` from activemq.xml |
+| `existingSecret` | `""`                                                 | Name of a pre-created Secret (skips chart Secret) |
+| `backend.image.repository` | `ghcr.io/qrowned/modern-activemq-dashboard-backend`  | Backend image |
+| `backend.image.tag` | `latest`                                             | Backend image tag |
+| `backend.replicaCount` | `1`                                                  | Backend replicas |
+| `backend.service.port` | `8080`                                               | Backend Service port |
+| `frontend.image.repository` | `ghcr.io/qrowned/modern-activemq-dashboard-frontend` | Frontend image |
+| `frontend.image.tag` | `latest`                                             | Frontend image tag |
+| `frontend.replicaCount` | `1`                                                  | Frontend replicas |
+| `frontend.service.port` | `80`                                                 | Frontend Service port |
+| `ingress.enabled` | `false`                                              | Create an Ingress resource |
+| `ingress.className` | `nginx`                                              | Ingress class |
+| `ingress.host` | `activemq-dashboard.example.com`                     | Hostname |
+| `ingress.annotations` | `{}`                                                 | Ingress annotations |
+| `ingress.tls` | `[]`                                                 | TLS configuration |
+
+### Option B: Kustomize
+
+Edit `deploy/kubernetes/base/secret.yaml` with your base64-encoded credentials:
+
+```bash
+echo -n 'http://your-broker:8161' | base64   # ACTIVEMQ_URL
+echo -n 'your-password' | base64              # ACTIVEMQ_PASSWORD
+echo -n 'your-broker-name' | base64           # BROKER_NAME
+```
+
+Then apply an overlay:
+
+```bash
+# Staging
+kubectl apply -k deploy/kubernetes/overlays/staging
+
+# Production (includes TLS ingress, 2 replicas)
+kubectl apply -k deploy/kubernetes/overlays/production
+```
+
+Verify:
+
+```bash
+kubectl get pods -n activemq-dashboard
+kubectl get svc -n activemq-dashboard
+kubectl logs -n activemq-dashboard deploy/activemq-dashboard-backend
+```
+
+### Verification checklist
+
+```bash
+# Health check via exec
+kubectl exec -n activemq-dashboard deploy/activemq-dashboard-backend -- \
+  wget -qO- http://localhost:8080/api/v1/health
+
+# Port-forward smoke test
+kubectl port-forward svc/activemq-dashboard-frontend 3000:80 -n activemq-dashboard
+curl -s http://localhost:3000 | grep -c "ActiveMQ"
+```
+
+---
+
 ## Manual Setup (Development)
 
 ### Prerequisites
@@ -300,6 +468,14 @@ activemq-dashboard/
 │       ├── hooks/         useAutoRefresh, useTheme, useToast
 │       ├── lib/           API client, utilities
 │       └── pages/         Dashboard, Queues, Topics, Connections, Network, Scheduled
+├── deploy/
+│   ├── helm/activemq-dashboard/   Helm chart
+│   └── kubernetes/                Kustomize manifests
+│       ├── base/                  Base resources
+│       └── overlays/
+│           ├── production/        TLS ingress, 2 replicas, pinned image tags
+│           └── staging/           namePrefix: staging-
+├── .github/workflows/     CI/CD: build images + publish Helm chart on release
 ├── activemq/conf/         activemq.xml for the bundled broker
 ├── docker-compose.yml
 └── simulate.py

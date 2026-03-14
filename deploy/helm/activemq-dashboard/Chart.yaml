@@ -1,0 +1,6 @@
+apiVersion: v2
+name: activemq-dashboard
+description: A modern management UI for Apache ActiveMQ Classic
+type: application
+version: 0.1.0
+appVersion: "latest"

@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: activemq-dashboard
+  namespace: activemq-dashboard
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - activemq-dashboard.example.com
+      secretName: activemq-dashboard-tls
+  rules:
+    - host: activemq-dashboard.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: activemq-dashboard-frontend
+                port:
+                  number: 80

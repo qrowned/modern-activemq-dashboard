@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: activemq-dashboard-frontend
+  namespace: activemq-dashboard
+spec:
+  type: ClusterIP
+  selector:
+    app: activemq-dashboard-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
