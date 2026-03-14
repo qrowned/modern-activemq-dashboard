@@ -3,6 +3,13 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 COPY . .
+
+ARG VITE_API_URL
+
+ENV VITE_API_URL=$VITE_API_URL
+
+RUN echo "Building with $VITE_API_URL as base url"
+
 RUN npm run build
 
 FROM nginx:alpine
