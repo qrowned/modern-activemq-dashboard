@@ -26,8 +26,8 @@ jobs:
           context: ./backend
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/activemq-dashboard-backend:${{ steps.version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/activemq-dashboard-backend:latest
+            ghcr.io/${{ github.repository_owner }}/modern-activemq-dashboard-backend:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/modern-activemq-dashboard-backend:latest
       - uses: docker/build-push-action@v5
         with:
           context: ./frontend

@@ -4,15 +4,18 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search } from 'lucide-react'
+import { Search, Send, Trash2 } from 'lucide-react'
 
 interface TopicTableProps {
   topics: Topic[]
   compact?: boolean
+  onSend?: (topic: Topic) => void
+  onDelete?: (topic: Topic) => void
 }
 
-export function TopicTable({ topics, compact = false }: TopicTableProps) {
+export function TopicTable({ topics, compact = false, onSend, onDelete }: TopicTableProps) {
   const [search, setSearch] = useState('')
 
   const filtered = topics.filter(t =>
@@ -45,12 +48,13 @@ export function TopicTable({ topics, compact = false }: TopicTableProps) {
               <TableHead className="text-right">Consumers</TableHead>
               <TableHead className="text-right">Producers</TableHead>
               <TableHead className="text-right">Memory %</TableHead>
+              {(onSend || onDelete) && <TableHead />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={(onSend || onDelete) ? 9 : 8} className="text-center text-muted-foreground py-8">
                   No topics found
                 </TableCell>
               </TableRow>
@@ -91,6 +95,32 @@ export function TopicTable({ topics, compact = false }: TopicTableProps) {
                       {topic.memoryPercentage.toFixed(1)}%
                     </span>
                   </TableCell>
+                  {(onSend || onDelete) && (
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {onSend && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onSend(topic)}
+                            title="Send message"
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {onDelete && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onDelete(topic)}
+                            title="Delete topic"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

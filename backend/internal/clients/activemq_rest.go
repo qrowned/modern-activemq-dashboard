@@ -35,13 +35,22 @@ func NewActiveMQRESTClient(baseURL, username, password string) *ActiveMQRESTClie
 
 // SendMessage POSTs to the broker REST API with body and optional JMS/scheduling params.
 func (c *ActiveMQRESTClient) SendMessage(queueName string, req *models.SendMessageRequest) error {
-	u, err := url.Parse(fmt.Sprintf("%s/api/message/%s", c.baseURL, url.PathEscape(queueName)))
+	return c.send(queueName, "queue", req)
+}
+
+// SendTopicMessage POSTs to the broker REST API targeting a topic destination.
+func (c *ActiveMQRESTClient) SendTopicMessage(topicName string, req *models.SendMessageRequest) error {
+	return c.send(topicName, "topic", req)
+}
+
+func (c *ActiveMQRESTClient) send(name, destType string, req *models.SendMessageRequest) error {
+	u, err := url.Parse(fmt.Sprintf("%s/api/message/%s", c.baseURL, url.PathEscape(name)))
 	if err != nil {
 		return fmt.Errorf("build send URL: %w", err)
 	}
 
 	q := u.Query()
-	q.Set("type", "queue")
+	q.Set("type", destType)
 
 	// JMS headers as query params (supported by ActiveMQ REST)
 	if req.CorrelationID != "" {

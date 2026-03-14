@@ -39,6 +39,8 @@ func NewRouter(brokerHandler *BrokerHandler, queueHandler *QueueHandler, topicHa
 
 		r.Get("/topics", topicHandler.ListTopics)
 		r.Post("/topics", topicHandler.CreateTopic)
+		r.Delete("/topics/{name}", topicHandler.DeleteTopic)
+		r.Post("/topics/{name}/send", topicHandler.SendMessage)
 
 		r.Get("/connections", connectionsHandler.GetConnectors)
 		r.Get("/connections/active", connectionsHandler.GetActiveConnections)

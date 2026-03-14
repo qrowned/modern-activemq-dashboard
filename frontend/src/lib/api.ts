@@ -185,6 +185,15 @@ export const api = {
   getTopics: (): Promise<Topic[]> =>
     request('/api/v1/topics'),
 
+  sendTopicMessage: (topicName: string, data: SendMessageRequest): Promise<{ status: string }> =>
+    request(`/api/v1/topics/${encodeURIComponent(topicName)}/send`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteTopic: (topicName: string): Promise<{ status: string }> =>
+    request(`/api/v1/topics/${encodeURIComponent(topicName)}`, { method: 'DELETE' }),
+
   createQueue: (name: string): Promise<{ status: string; name: string }> =>
     request('/api/v1/queues', { method: 'POST', body: JSON.stringify({ name }) }),
 

@@ -19,6 +19,7 @@ interface SendMessageDialogProps {
   queueName: string
   open: boolean
   onClose: () => void
+  sendFn?: (data: Parameters<typeof api.sendMessage>[1]) => Promise<{ status: string }>
 }
 
 interface PropertyEntry {
@@ -28,7 +29,7 @@ interface PropertyEntry {
 
 const defaultCounterHeader = 'JMSXMessageCounter'
 
-export function SendMessageDialog({ queueName, open, onClose }: SendMessageDialogProps) {
+export function SendMessageDialog({ queueName, open, onClose, sendFn }: SendMessageDialogProps) {
   const [body, setBody] = useState('')
   const [properties, setProperties] = useState<PropertyEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -104,7 +105,7 @@ export function SendMessageDialog({ queueName, open, onClose }: SendMessageDialo
 
     setLoading(true)
     try {
-      await api.sendMessage(queueName, payload)
+      await (sendFn ? sendFn(payload) : api.sendMessage(queueName, payload))
       toast({ title: 'Message sent', description: `Message sent to ${queueName}` })
       setBody('')
       setProperties([])

@@ -11,11 +11,12 @@ import (
 
 type TopicService struct {
 	jolokia    *clients.JolokiaClient
+	rest       *clients.ActiveMQRESTClient
 	brokerName string
 }
 
-func NewTopicService(jolokia *clients.JolokiaClient, brokerName string) *TopicService {
-	return &TopicService{jolokia: jolokia, brokerName: brokerName}
+func NewTopicService(jolokia *clients.JolokiaClient, brokerName string, rest *clients.ActiveMQRESTClient) *TopicService {
+	return &TopicService{jolokia: jolokia, brokerName: brokerName, rest: rest}
 }
 
 func (s *TopicService) topicMBean(name string) string {
@@ -76,6 +77,53 @@ func (s *TopicService) CreateTopic(name string) error {
 	mbean := fmt.Sprintf("org.apache.activemq:type=Broker,brokerName=%s", s.brokerName)
 	_, err := s.jolokia.Exec(mbean, "addTopic(java.lang.String)", name)
 	return err
+}
+
+func (s *TopicService) DeleteTopic(name string) error {
+	mbean := fmt.Sprintf("org.apache.activemq:type=Broker,brokerName=%s", s.brokerName)
+	_, err := s.jolokia.Exec(mbean, "removeTopic(java.lang.String)", name)
+	return err
+}
+
+func (s *TopicService) SendMessage(topicName string, req *models.SendMessageRequest) error {
+	numMessages := 1
+	if req.NumMessages != nil && *req.NumMessages > 1 {
+		numMessages = *req.NumMessages
+	}
+
+	useREST := s.rest != nil && s.hasSendOptions(req)
+	if useREST {
+		for i := 0; i < numMessages; i++ {
+			if err := s.rest.SendTopicMessage(topicName, req); err != nil {
+				return fmt.Errorf("REST send: %w", err)
+			}
+		}
+		return nil
+	}
+
+	mbean := s.topicMBean(topicName)
+	for i := 0; i < numMessages; i++ {
+		if req.Type == "bytes" {
+			_, err := s.jolokia.Exec(mbean, "sendBytesMessage(byte[])", []byte(req.Body))
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		_, err := s.jolokia.Exec(mbean, "sendTextMessage(java.lang.String)", req.Body)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *TopicService) hasSendOptions(req *models.SendMessageRequest) bool {
+	return req.CorrelationID != "" || req.ReplyTo != "" || req.MessageType != "" ||
+		req.MessageGroup != "" || req.GroupSeq != nil || req.Persistent != nil ||
+		req.Priority != nil || req.TimeToLive != nil || req.ScheduledDelay != nil ||
+		req.ScheduledPeriod != nil || req.ScheduledRepeat != nil || req.ScheduledCron != "" ||
+		req.CounterHeader != "" || len(req.Properties) > 0
 }
 
 func (s *TopicService) getTopicAttributes(name string) (*models.Topic, error) {

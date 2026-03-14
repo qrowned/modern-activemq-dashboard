@@ -225,8 +225,10 @@ POST /api/v1/queues/{name}/move
 POST /api/v1/queues/{name}/retry
 POST /api/v1/queues/{name}/purge
 
-GET  /api/v1/topics
-POST /api/v1/topics                           { "name": "my.topic" }
+GET    /api/v1/topics
+POST   /api/v1/topics                         { "name": "my.topic" }
+POST   /api/v1/topics/{name}/send
+DELETE /api/v1/topics/{name}
 
 GET  /api/v1/connections
 GET  /api/v1/connections/active

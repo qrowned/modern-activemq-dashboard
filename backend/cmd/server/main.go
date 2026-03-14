@@ -27,7 +27,7 @@ func main() {
 
 	brokerService := services.NewBrokerService(jolokiaClient, cfg.BrokerName)
 	queueService := services.NewQueueService(jolokiaClient, cfg.BrokerName, restClient)
-	topicService := services.NewTopicService(jolokiaClient, cfg.BrokerName)
+	topicService := services.NewTopicService(jolokiaClient, cfg.BrokerName, restClient)
 	connectionsService := services.NewConnectionsService(jolokiaClient, cfg.BrokerName)
 	networkService := services.NewNetworkService(jolokiaClient, cfg.BrokerName)
 	scheduledService := services.NewScheduledService(jolokiaClient, cfg.BrokerName)
